@@ -1,0 +1,63 @@
+name: Scrape Marchés Publics
+
+on:
+  schedule:
+    # Every 6 hours: 00:00, 06:00, 12:00, 18:00 UTC
+    - cron: "0 0,6,12,18 * * *"
+  workflow_dispatch:
+    inputs:
+      days_back:
+        description: "Days to look back"
+        required: false
+        default: "7"
+      full:
+        description: "Full scrape? (true/false)"
+        required: false
+        default: "false"
+      page_limit:
+        description: "Max pages (empty = unlimited)"
+        required: false
+        default: ""
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55   # Stay under GitHub Actions 60-min limit
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: scraper/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r scraper/requirements.txt
+          playwright install chromium --with-deps
+
+      - name: Run scraper
+        working-directory: scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          ARGS="--days-back ${{ github.event.inputs.days_back || '7' }}"
+          if [ "${{ github.event.inputs.full }}" = "true" ]; then
+            ARGS="--full"
+          fi
+          if [ -n "${{ github.event.inputs.page_limit }}" ]; then
+            ARGS="$ARGS --page-limit ${{ github.event.inputs.page_limit }}"
+          fi
+          echo "Running: python scraper.py $ARGS"
+          python scraper.py $ARGS
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Scrape failed at $(date -u)" >> /tmp/scrape_status.txt
+          cat /tmp/scrape_status.txt
