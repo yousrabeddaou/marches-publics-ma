@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
-import { Loader2, LayoutGrid, List, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, LayoutGrid, List, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { Header } from "@/components/Header";
 import { FilterSidebar } from "@/components/FilterSidebar";
 import { MarketCard } from "@/components/MarketCard";
@@ -34,6 +34,31 @@ export default function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isPending, startTransition] = useTransition();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshMsg, setRefreshMsg] = useState<string | null>(null);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setRefreshMsg(null);
+    try {
+      const res = await fetch("/api/refresh?pages=10");
+      const data = await res.json();
+      if (data.success) {
+        setRefreshMsg(`✓ ${data.marches_saved} marchés ajoutés`);
+        // Reload data
+        const { data: newData, count } = await fetchMarches(filters, page);
+        setMarches(newData);
+        setTotalCount(count);
+        fetchStats().then(setStats);
+      } else {
+        setRefreshMsg("Erreur : " + data.error);
+      }
+    } catch {
+      setRefreshMsg("Erreur de connexion");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Load metadata once
   useEffect(() => {
@@ -90,7 +115,24 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* View toggle */}
+          {/* Refresh + view toggle */}
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col items-end gap-1">
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              >
+                <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
+                {isRefreshing ? "Récupération…" : "Actualiser les données"}
+              </button>
+              {refreshMsg && (
+                <span className={`text-xs ${refreshMsg.startsWith("✓") ? "text-emerald-600" : "text-red-500"}`}>
+                  {refreshMsg}
+                </span>
+              )}
+            </div>
+
           <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1">
             <button
               onClick={() => setViewMode("grid")}
@@ -108,6 +150,7 @@ export default function HomePage() {
             >
               <List size={16} />
             </button>
+          </div>
           </div>
         </div>
 
