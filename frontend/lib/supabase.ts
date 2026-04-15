@@ -116,6 +116,6 @@ export async function fetchTopAcheteurs(limit = 50): Promise<string[]> {
     .not("acheteur", "is", null)
     .limit(limit * 5);  // over-fetch then deduplicate
   if (error) return [];
-  const unique = [...new Set((data as { acheteur: string }[]).map((r) => r.acheteur))];
+  const unique = Array.from(new Set((data as { acheteur: string }[]).map((r) => r.acheteur)));
   return unique.slice(0, limit);
 }
