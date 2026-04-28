@@ -1,4 +1,4 @@
-# Moroccan Public Tenders — Monitoring Platform 
+# Moroccan Public Tenders — Monitoring Platform (vibe-coded)
 An open-source platform for monitoring Moroccan public procurement tenders from [marchespublics.gov.ma](https://www.marchespublics.gov.ma/pmmp/).
 
 
